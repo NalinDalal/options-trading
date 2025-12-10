@@ -1,5 +1,5 @@
 {
-  "name": "utils",
+  "name": "@repo/utils",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -8,5 +8,14 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "jsonwebtoken": "^9.0.3"
+  },
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts"
   }
 }

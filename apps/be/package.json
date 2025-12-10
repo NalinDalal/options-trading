@@ -3,6 +3,11 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "dependencies": {
+    "@repo/db": "workspace:*",
+    "@repo/utils": "workspace:*",
+    "bun": "latest"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },

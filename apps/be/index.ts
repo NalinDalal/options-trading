@@ -1,5 +1,6 @@
 import { serve } from "bun";
-import { prisma } from "./lib/prisma";
+import { prisma } from "@repo/db";
+
 import {
   hashPassword,
   verifyPassword,
@@ -83,4 +84,3 @@ serve({
 });
 
 console.log("Listening on port:", port);
-
