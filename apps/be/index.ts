@@ -1,86 +1,125 @@
 import { serve } from "bun";
 import { prisma } from "@repo/db";
-
 import {
   hashPassword,
   verifyPassword,
   createToken,
   parseJSON,
 } from "@repo/utils";
+import "dotenv/config";
 
-const port = 5000;
+const port = Number(process.env.PORT || 3001);
 
+/** --- Helper responses --- */
+const json = (data: any, status = 200) =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+
+/** --- Ensure env sanity --- */
+if (!process.env.JWT_SECRET) {
+  throw new Error(" Missing JWT_SECRET in environment");
+}
+
+if (!process.env.DATABASE_URL) {
+  throw new Error(" Missing DATABASE_URL in environment");
+}
+
+/** --- Main Server --- */
 serve({
   port,
-  routes: {
-    "/": () => new Response("Home"),
 
-    // --- SIGN UP ---
-    "POST /signup": async (req) => {
-      const body = await parseJSON(req);
-      if (!body?.email || !body?.password)
-        return json({ error: "email & password required" }, 400);
+  async fetch(req) {
+    const url = new URL(req.url);
+    const path = url.pathname;
+    const method = req.method;
 
-      const existing = await prisma.user.findUnique({
-        where: { email: body.email },
-      });
+    // --- Root ---
+    if (path === "/" && method === "GET") {
+      return new Response("OK");
+    }
 
-      if (existing) return json({ error: "Email already exists" }, 409);
+    // --- SIGNUP ---
+    if (path === "/signup" && method === "POST") {
+      try {
+        const body = await parseJSON(req);
+        const { email, password, name } = body || {};
 
-      const hashed = await hashPassword(body.password);
+        if (!email || !password)
+          return json({ error: "email & password required" }, 400);
 
-      const user = await prisma.user.create({
-        data: {
-          email: body.email,
-          password: hashed,
-          name: body.name ?? null,
-        },
-      });
+        const exists = await prisma.user.findUnique({ where: { email } });
+        if (exists) return json({ error: "Email already exists" }, 409);
 
-      const token = createToken(user.id);
+        const hashed = await hashPassword(password);
+        const user = await prisma.user.create({
+          data: { email, password: hashed, name: name ?? null },
+        });
 
-      return json({ token, user: { id: user.id, email: user.email } });
-    },
+        const token = createToken(user.id);
 
-    // --- SIGN IN ---
-    "POST /signin": async (req) => {
-      const body = await parseJSON(req);
-      if (!body?.email || !body?.password)
-        return json({ error: "email & password required" }, 400);
+        return json({
+          token,
+          user: { id: user.id, email: user.email },
+        });
+      } catch (err) {
+        console.error("SIGNUP ERROR:", err);
+        return json({ error: "Internal error" }, 500);
+      }
+    }
 
-      const user = await prisma.user.findUnique({
-        where: { email: body.email },
-      });
+    // --- SIGNIN ---
+    if (path === "/signin" && method === "POST") {
+      try {
+        const body = await parseJSON(req);
+        const { email, password } = body || {};
 
-      if (!user) return json({ error: "Invalid email or password" }, 401);
+        if (!email || !password)
+          return json({ error: "email & password required" }, 400);
 
-      const ok = await verifyPassword(body.password, user.password);
-      if (!ok) return json({ error: "Invalid email or password" }, 401);
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) return json({ error: "Invalid credentials" }, 401);
 
-      const token = createToken(user.id);
+        const ok = await verifyPassword(password, user.password);
+        if (!ok) return json({ error: "Invalid credentials" }, 401);
 
-      return json({ token, user: { id: user.id, email: user.email } });
-    },
+        const token = createToken(user.id);
 
-    // --- ME (requires Authorization: Bearer token) ---
-    "GET /me": async (req) => {
+        return json({
+          token,
+          user: { id: user.id, email: user.email },
+        });
+      } catch (err) {
+        console.error("SIGNIN ERROR:", err);
+        return json({ error: "Internal error" }, 500);
+      }
+    }
+
+    // --- ME ---
+    if (path === "/me" && method === "GET") {
       const auth = req.headers.get("authorization");
       if (!auth?.startsWith("Bearer ")) return json({ error: "No token" }, 401);
 
       const token = auth.split(" ")[1];
 
       try {
-        const { userId } = await Bun.jwt.verify(token, process.env.JWT_SECRET!);
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        return json({ user });
-      } catch {
-        return json({ error: "Invalid token" }, 401);
+        const payload = await Bun.jwt.verify(token, process.env.JWT_SECRET!);
+        const user = await prisma.user.findUnique({
+          where: { id: payload.userId },
+        });
+
+        if (!user) return json({ error: "User not found" }, 404);
+
+        return json({ user: { id: user.id, email: user.email } });
+      } catch (err) {
+        return json({ error: "Invalid or expired token" }, 401);
       }
-    },
-  },
-  fetch(req) {
-    return new Response("404!");
+    }
+
+    // --- Not Found ---
+    return json({ error: "Route not found" }, 404);
   },
 });
 
-console.log("Listening on port:", port);
+console.log(`Server running on port ${port}`);

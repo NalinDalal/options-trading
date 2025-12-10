@@ -15,7 +15,7 @@ export function createToken(userId: string) {
   return sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
 }
 
-async function parseJSON(req: Request) {
+export async function parseJSON(req: Request) {
   try {
     return await req.json();
   } catch {
@@ -23,6 +23,6 @@ async function parseJSON(req: Request) {
   }
 }
 
-function json(data: any, status = 200) {
+export function json(data: any, status = 200) {
   return Response.json(data, { status });
 }

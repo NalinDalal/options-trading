@@ -1,50 +1,61 @@
 import { prisma } from "./index";
+import { hashPassword } from "@repo/utils";
 
 async function main() {
   console.log("Seeding database...");
 
   // --- USER ---
-  const user = await prisma.user.create({
-    data: {
+  const plainPassword = "password"; // seed password
+  const hashed = await hashPassword(plainPassword);
+
+  const user = await prisma.user.upsert({
+    where: { email: "test@example.com" },
+    update: {},
+    create: {
       email: "test@example.com",
-      password: "$2b$10$3b9FfWqG7h9E1ZcC1uMmTOyNxrHU0rgZ7iYz1C9lI7ayaRxhgIY1C", // "password" bcrypt
+      password: hashed,
       name: "Test User",
-      balance: BigInt(100000000), // 1e8 units
+      balance: BigInt(100000000),
     },
   });
 
   // --- UNDERLYINGS ---
-  const btc = await prisma.underlying.create({
-    data: {
-      symbol: "BTC",
-      decimals: 2,
-    },
+  const btc = await prisma.underlying.upsert({
+    where: { symbol: "BTC" },
+    update: {},
+    create: { symbol: "BTC", decimals: 2 },
   });
 
-  const eth = await prisma.underlying.create({
-    data: {
-      symbol: "ETH",
-      decimals: 2,
-    },
+  const eth = await prisma.underlying.upsert({
+    where: { symbol: "ETH" },
+    update: {},
+    create: { symbol: "ETH", decimals: 2 },
   });
 
-  const nifty = await prisma.underlying.create({
-    data: {
-      symbol: "NIFTY",
-      decimals: 2,
-    },
+  const nifty = await prisma.underlying.upsert({
+    where: { symbol: "NIFTY" },
+    update: {},
+    create: { symbol: "NIFTY", decimals: 2 },
   });
 
   // --- OPTION CONTRACTS ---
   const expiry = new Date();
-  expiry.setDate(expiry.getDate() + 7); // 1-week expiry
+  expiry.setDate(expiry.getDate() + 7);
 
-  const contracts = await prisma.optionContract.createMany({
+  await prisma.optionContract.deleteMany({
+    where: {
+      expiry: {
+        lte: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14),
+      },
+    },
+  });
+
+  await prisma.optionContract.createMany({
     data: [
       {
         underlyingId: btc.id,
         optionType: "CALL",
-        strike: BigInt(9000000), // 90,000.00
+        strike: BigInt(9000000),
         expiry,
         multiplier: 1,
       },
@@ -58,7 +69,7 @@ async function main() {
       {
         underlyingId: eth.id,
         optionType: "CALL",
-        strike: BigInt(300000), // 3,000.00
+        strike: BigInt(300000),
         expiry,
         multiplier: 1,
       },
@@ -70,9 +81,10 @@ async function main() {
         multiplier: 1,
       },
     ],
+    skipDuplicates: true,
   });
 
-  console.log("Seed complete!");
+  console.log("Seed complete! ✓");
 }
 
 main()

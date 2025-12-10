@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -13,45 +7,82 @@ datasource db {
   provider = "postgresql"
 }
 
-//     USER
 model User {
-  id          String      @id @default(uuid())
-  email       String      @unique
-  password    String
-  name        String?
-  balance     BigInt      @default(0)   // total account balance in smallest units
-  marginUsed  BigInt      @default(0)
-  createdAt   DateTime    @default(now())
-
-  positions   Position[]
-  orders      Order[]
-  trades      Trade[]
+  id         String     @id @default(uuid())
+  email      String     @unique
+  password   String
+  name       String?
+  balance    BigInt     @default(0)
+  marginUsed BigInt     @default(0)
+  createdAt  DateTime   @default(now())
+  orders     Order[]
+  positions  Position[]
+  trades     Trade[]
 }
 
-//     UNDERLYING ASSET
 model Underlying {
-  id        String  @id @default(uuid())
-  symbol    String  @unique   // BTC, ETH, NIFTY
-  decimals  Int     @default(2)
+  id        String           @id @default(uuid())
+  symbol    String           @unique
+  decimals  Int              @default(2)
   contracts OptionContract[]
 }
 
-//   OPTION CONTRACT
 model OptionContract {
-  id           String      @id @default(uuid())
+  id           String         @id @default(uuid())
   underlyingId String
-  underlying   Underlying  @relation(fields: [underlyingId], references: [id])
-
-  optionType   OptionType    // CALL / PUT
-  strike       BigInt        // in smallest units
+  optionType   OptionType
+  strike       BigInt
   expiry       DateTime
-  multiplier   Int           // lot size
-  decimals     Int @default(2)
-
+  multiplier   Int
+  decimals     Int            @default(2)
   status       ContractStatus @default(ACTIVE)
-
-  positions    Position[]
+  underlying   Underlying     @relation(fields: [underlyingId], references: [id])
   orders       Order[]
+  positions    Position[]
+}
+
+model Order {
+  id         String         @id @default(uuid())
+  userId     String
+  contractId String
+  side       Side
+  orderType  OrderType
+  status     OrderStatus    @default(PENDING)
+  price      BigInt?
+  qty        Int
+  filledQty  Int            @default(0)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  contract   OptionContract @relation(fields: [contractId], references: [id])
+  user       User           @relation(fields: [userId], references: [id])
+  trades     Trade[]
+}
+
+model Position {
+  id            String         @id @default(uuid())
+  userId        String
+  contractId    String
+  side          Side
+  avgPrice      BigInt
+  qty           Int
+  realizedPnl   BigInt         @default(0)
+  unrealizedPnl BigInt         @default(0)
+  createdAt     DateTime       @default(now())
+  closedAt      DateTime?
+  contract      OptionContract @relation(fields: [contractId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+}
+
+model Trade {
+  id        String   @id @default(uuid())
+  orderId   String
+  userId    String
+  price     BigInt
+  qty       Int
+  direction Side
+  timestamp DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 enum OptionType {
@@ -62,29 +93,6 @@ enum OptionType {
 enum ContractStatus {
   ACTIVE
   EXPIRED
-}
-
-//         ORDER
-model Order {
-  id              String        @id @default(uuid())
-  userId          String
-  user            User          @relation(fields: [userId], references: [id])
-
-  contractId      String
-  contract        OptionContract @relation(fields: [contractId], references: [id])
-
-  side            Side          // buy/sell
-  orderType       OrderType     // market/limit
-  status          OrderStatus   @default(PENDING)
-
-  price           BigInt?       // limit price
-  qty             Int           // in contracts
-  filledQty       Int @default(0)
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  trades          Trade[]
 }
 
 enum Side {
@@ -102,39 +110,4 @@ enum OrderStatus {
   PARTIAL
   FILLED
   CANCELLED
-}
-
-//        POSITION
-model Position {
-  id            String         @id @default(uuid())
-  userId        String
-  user          User           @relation(fields: [userId], references: [id])
-
-  contractId    String
-  contract      OptionContract @relation(fields: [contractId], references: [id])
-
-  side          Side           // long/short
-  avgPrice      BigInt
-  qty           Int
-  realizedPnl   BigInt @default(0)
-  unrealizedPnl BigInt @default(0)
-
-  createdAt     DateTime @default(now())
-  closedAt      DateTime?
-}
-
-//        TRADE (fill)
-model Trade {
-  id        String @id @default(uuid())
-  orderId   String
-  order     Order @relation(fields: [orderId], references: [id])
-
-  userId    String
-  user      User  @relation(fields: [userId], references: [id])
-
-  price     BigInt
-  qty       Int
-  direction Side      // buy/sell fill
-
-  timestamp DateTime @default(now())
 }

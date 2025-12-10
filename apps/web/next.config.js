@@ -1,4 +1,7 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+import tailwindcss from "@tailwindcss/vite";
 
+const nextConfig = {
+  plugins: [tailwindcss()],
+};
 export default nextConfig;
