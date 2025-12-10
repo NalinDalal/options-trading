@@ -1,5 +1,5 @@
 "use client";
-export default function PersonalDashboard() {
+export default function HomePage() {
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-50 overflow-hidden font-mono">
       {/* Background Effects - More subtle materialistic approach */}

@@ -115,21 +115,57 @@ E3 --> D1
 E4 --> D1
 ```
 
-`localhost:3001/signup`
+`localhost:3001/signup` + `POST`
 
-```
+```json
 {
-    "email":"test2@example.com",
-    "password":"password"
+  "email": "test2@example.com",
+  "password": "password"
 }
 ```
 
-```
+```json
 {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJlYzU0MzhhYi1lZGRiLTRkNDMtOWI1Yy0wZmMzZDE4MWRmMTQiLCJpYXQiOjE3NjUzNzM1NjMsImV4cCI6MTc2NTk3ODM2M30.e6pC_t53sXw6O_49t9lPlcY6HcN5OoxN9QbbguxHm8o",
-    "user": {
-        "id": "ec5438ab-eddb-4d43-9b5c-0fc3d181df14",
-        "email": "test2@example.com"
-    }
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJlYzU0MzhhYi1lZGRiLTRkNDMtOWI1Yy0wZmMzZDE4MWRmMTQiLCJpYXQiOjE3NjUzNzM1NjMsImV4cCI6MTc2NTk3ODM2M30.e6pC_t53sXw6O_49t9lPlcY6HcN5OoxN9QbbguxHm8o",
+  "user": {
+    "id": "ec5438ab-eddb-4d43-9b5c-0fc3d181df14",
+    "email": "test2@example.com"
+  }
+}
+```
+
+`localhost:3001/signin` + `POST`
+
+```json
+{
+  "email": "test2@example.com",
+  "password": "password"
+}
+```
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJlYzU0MzhhYi1lZGRiLTRkNDMtOWI1Yy0wZmMzZDE4MWRmMTQiLCJpYXQiOjE3NjUzNzgzODQsImV4cCI6MTc2NTk4MzE4NH0.wAh3aIpb2Uiy_VnZcRquxB7KFwNafMaHE-Da218R--8",
+  "user": {
+    "id": "ec5438ab-eddb-4d43-9b5c-0fc3d181df14",
+    "email": "test2@example.com"
+  }
+}
+```
+
+`localhost:3001/me` + `GET`
+
+Headers
+
+```json
+Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJlYzU0MzhhYi1lZGRiLTRkNDMtOWI1Yy0wZmMzZDE4MWRmMTQiLCJpYXQiOjE3NjUzNzg1NDEsImV4cCI6MTc2NTk4MzM0MX0.hSROYk86IP61bFNF9kVTVmQlMz30l61BZLlDSUrwmbM
+```
+
+```json
+{
+  "user": {
+    "id": "ec5438ab-eddb-4d43-9b5c-0fc3d181df14",
+    "email": "test2@example.com"
+  }
 }
 ```

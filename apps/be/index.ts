@@ -7,14 +7,25 @@ import {
   parseJSON,
 } from "@repo/utils";
 import "dotenv/config";
+import { verify as jwtVerify } from "jsonwebtoken";
 
 const port = Number(process.env.PORT || 3001);
 
-/** --- Helper responses --- */
+/** -----------------------------------
+ * CORS HEADERS (IMPORTANT)
+ -------------------------------------*/
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "http://localhost:3000",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Credentials": "true",
+};
+
+/** --- json response with CORS --- */
 const json = (data: any, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...corsHeaders },
   });
 
 /** --- Ensure env sanity --- */
@@ -35,9 +46,16 @@ serve({
     const path = url.pathname;
     const method = req.method;
 
+    /** ---------------------------
+     * Handle CORS preflight
+     ---------------------------*/
+    if (method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
     // --- Root ---
     if (path === "/" && method === "GET") {
-      return new Response("OK");
+      return new Response("OK", { headers: corsHeaders });
     }
 
     // --- SIGNUP ---
@@ -104,7 +122,7 @@ serve({
       const token = auth.split(" ")[1];
 
       try {
-        const payload = await Bun.jwt.verify(token, process.env.JWT_SECRET!);
+        const payload = await jwtVerify(token, process.env.JWT_SECRET!);
         const user = await prisma.user.findUnique({
           where: { id: payload.userId },
         });
