@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
+import { API_URL } from "../page";
 export default function MePage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);

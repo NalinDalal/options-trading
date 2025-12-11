@@ -1,4 +1,6 @@
 "use client";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 export default function TradingLanding() {
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-hidden">
