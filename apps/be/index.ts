@@ -23,10 +23,13 @@ const corsHeaders = {
 
 /** --- json response with CORS --- */
 const json = (data: any, status = 200) =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json", ...corsHeaders },
-  });
+  new Response(
+    JSON.stringify(data, (_, v) => (typeof v === "bigint" ? v.toString() : v)),
+    {
+      status,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    },
+  );
 
 /** --- Ensure env sanity --- */
 if (!process.env.JWT_SECRET) {
@@ -132,6 +135,126 @@ serve({
         return json({ user: { id: user.id, email: user.email } });
       } catch (err) {
         return json({ error: "Invalid or expired token" }, 401);
+      }
+    }
+
+    // ---------------------------------------------------
+    // UNDERLYINGS
+    // ---------------------------------------------------
+
+    // CREATE UNDERLYING
+    if (path === "/underlyings" && method === "POST") {
+      try {
+        const body = await parseJSON(req);
+        const { symbol, decimals } = body || {};
+
+        if (!symbol) return json({ error: "symbol required" }, 400);
+
+        const exists = await prisma.underlying.findUnique({
+          where: { symbol },
+        });
+
+        if (exists) return json({ error: "Underlying already exists" }, 409);
+
+        const underlying = await prisma.underlying.create({
+          data: {
+            symbol,
+            decimals: decimals ?? 2,
+          },
+        });
+
+        return json({ underlying });
+      } catch (err) {
+        console.error("CREATE UNDERLYING ERROR:", err);
+        return json({ error: "Internal error" }, 500);
+      }
+    }
+
+    // LIST UNDERLYINGS
+    if (path === "/underlyings" && method === "GET") {
+      try {
+        const list = await prisma.underlying.findMany({
+          orderBy: { symbol: "asc" },
+        });
+
+        return json({ underlyings: list });
+      } catch (err) {
+        console.error("LIST UNDERLYINGS ERROR:", err);
+        return json({ error: "Internal error" }, 500);
+      }
+    }
+
+    // ---------------------------------------------------
+    // OPTION CONTRACTS
+    // ---------------------------------------------------
+
+    // CREATE OPTION CONTRACT
+    if (path === "/contracts" && method === "POST") {
+      try {
+        const body = await parseJSON(req);
+        const {
+          underlyingId,
+          optionType,
+          strike,
+          expiry,
+          multiplier,
+          decimals,
+        } = body || {};
+
+        if (!underlyingId || !optionType || !strike || !expiry || !multiplier) {
+          return json(
+            {
+              error:
+                "required fields: underlyingId, optionType, strike, expiry, multiplier",
+            },
+            400,
+          );
+        }
+
+        const contract = await prisma.optionContract.create({
+          data: {
+            underlyingId,
+            optionType,
+            strike: BigInt(String(strike)),
+            expiry: new Date(expiry),
+            multiplier,
+            decimals: decimals ?? 2,
+          },
+        });
+
+        return json({ contract });
+      } catch (err) {
+        console.error("CREATE CONTRACT ERROR:", err);
+        return json({ error: "Internal error" }, 500);
+      }
+    }
+
+    // LIST CONTRACTS (with optional filters)
+    if (path === "/contracts" && method === "GET") {
+      try {
+        const underlyingId = url.searchParams.get("underlyingId");
+        const optionType = url.searchParams.get("optionType");
+        const expiry = url.searchParams.get("expiry");
+
+        const filters: any = {};
+
+        if (underlyingId) filters.underlyingId = underlyingId;
+        if (optionType) filters.optionType = optionType;
+        if (expiry) filters.expiry = new Date(expiry);
+
+        const list = await prisma.optionContract.findMany({
+          where: filters,
+          orderBy: [
+            { expiry: "asc" },
+            { strike: "asc" },
+            { optionType: "asc" },
+          ],
+        });
+
+        return json({ contracts: list });
+      } catch (err) {
+        console.error("LIST CONTRACTS ERROR:", err);
+        return json({ error: "Internal error" }, 500);
       }
     }
 

@@ -169,3 +169,7 @@ Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJlYzU0MzhhYi1lZGRiLTRk
   }
 }
 ```
+
+to do, check out how microservices will work
+you have init ui, auth, now check how to trade things
+how will things like ws, redis come in hand ; price polling
