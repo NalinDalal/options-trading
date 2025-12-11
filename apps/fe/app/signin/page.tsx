@@ -4,7 +4,7 @@ import { useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-const signIn = async (email, password) => {
+const signIn = async (email: string, password: string) => {
   const response = await fetch(`${API_URL}/signin`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -23,7 +23,7 @@ export default function SignIn() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -42,7 +42,7 @@ export default function SignIn() {
 
       // go to dashboard or /me
       window.location.href = "/me";
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
@@ -103,7 +103,7 @@ export default function SignIn() {
           </div>
 
           {/* Form */}
-          <div className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium mb-2">
@@ -159,7 +159,7 @@ export default function SignIn() {
 
             {/* Sign In Button */}
             <button
-              onClick={handleSubmit}
+              type="submit"
               disabled={loading}
               className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 py-3 rounded-lg font-semibold transition-all shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -177,7 +177,7 @@ export default function SignIn() {
                 Sign up
               </button>
             </div>
-          </div>
+          </form>
         </div>
 
         {/* Security Notice */}

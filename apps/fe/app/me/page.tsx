@@ -1,10 +1,15 @@
 "use client";
-
 import { useEffect, useState } from "react";
-
 import { API_URL } from "../page";
+
+// Define the user type
+interface User {
+  id: string;
+  email: string;
+}
+
 export default function MePage() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

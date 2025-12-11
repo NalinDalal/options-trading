@@ -3,7 +3,7 @@ import { useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-const signUp = async (email, password, name) => {
+const signUp = async (email: string, password: string, name: string) => {
   const response = await fetch(`${API_URL}/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -23,7 +23,7 @@ export default function SignUp() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -44,7 +44,7 @@ export default function SignUp() {
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
       window.location.href = "/me";
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
@@ -104,7 +104,7 @@ export default function SignUp() {
           </div>
 
           {/* Form */}
-          <div className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Full Name Field */}
             <div>
               <label
@@ -202,7 +202,7 @@ export default function SignUp() {
 
             {/* Sign Up Button */}
             <button
-              onClick={handleSubmit}
+              type="submit"
               disabled={loading}
               className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 py-3 rounded-lg font-semibold transition-all shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -220,7 +220,7 @@ export default function SignUp() {
                 Sign in
               </button>
             </div>
-          </div>
+          </form>
         </div>
 
         {/* Security Notice */}
