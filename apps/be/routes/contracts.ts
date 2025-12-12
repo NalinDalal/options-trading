@@ -1,6 +1,7 @@
 import { prisma } from "@repo/db";
 import { parseJSON, json } from "@repo/utils";
 import type { Route } from "../utils/router";
+import { broadcast } from "@repo/ws";
 
 export const contractRoutes: Route[] = [
   // CREATE OPTION CONTRACT
@@ -38,6 +39,12 @@ export const contractRoutes: Route[] = [
             multiplier,
             decimals: decimals ?? 2,
           },
+        });
+
+        //  WS BROADCAST HERE
+        broadcast("contracts", {
+          type: "contract_created",
+          contract,
         });
 
         return json({ contract });

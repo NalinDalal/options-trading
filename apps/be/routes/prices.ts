@@ -24,6 +24,22 @@ export const priceRoutes: Route[] = [
           },
         });
 
+        //
+        // Broadcast to WS server
+        await fetch("http://localhost:3003/broadcast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            channel: "prices",
+            message: {
+              type: "price_update",
+              symbol: underlying.symbol,
+              price: Number(underlying.currentPrice),
+            },
+          }),
+        });
+        //
+
         return json({ underlying });
       } catch (err) {
         console.error("UPDATE PRICE ERROR:", err);
