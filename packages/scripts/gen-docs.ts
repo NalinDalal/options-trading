@@ -15,13 +15,20 @@ const project = new Project({
 
 // Include backend + utils + shared files
 project.addSourceFilesAtPaths([
+  // Backend (TS)
   "apps/be/**/*.ts",
   "apps/be/*.ts",
+  // Frontend (Next.js app in apps/fe)
+  "apps/fe/**/*.tsx",
+  "apps/fe/**/*.ts",
+  // WebSocket server
+  "apps/ws/**/*.ts",
+  // Shared utils and packages
   "packages/utils/**/*.ts",
-  "packages/db/*.ts",
+  // DB package (include nested files like prisma helpers)
+  "packages/db/**/*.ts",
+  // UI React components
   "packages/ui/**/*.tsx",
-  "apps/web/**/**/*.tsx",
-  "apps/web/**/**/*.ts",
 ]);
 
 const files = project.getSourceFiles();
@@ -34,12 +41,28 @@ function generateDocs(
   name: string,
   isArrow = false,
 ) {
-  const params = entity.getParameters().map((p: ParameterDeclaration) => ({
-    name: p.getName(),
-    type: p.getType().getText(),
-  }));
+  const params = entity
+    .getParameters()
+    .filter((p: ParameterDeclaration) => p.getName() !== "this")
+    .map((p: ParameterDeclaration) => {
+      let typeText = "unknown";
+      try {
+        typeText = p.getType().getText();
+      } catch {
+        typeText = "unknown";
+      }
+      return {
+        name: p.getName(),
+        type: typeText,
+      };
+    });
 
-  const returnType = entity.getReturnType().getText();
+  let returnType = "unknown";
+  try {
+    returnType = entity.getReturnType().getText();
+  } catch {
+    returnType = "unknown";
+  }
   const description = `${isArrow ? "Executes" : "Performs"} ${name
     .replace(/([A-Z])/g, " $1")
     .toLowerCase()} operation.`;
