@@ -1,12 +1,15 @@
 import { prisma } from "@repo/db";
 
-export async function updatePositionFromTrade(trade: {
+type TradeInput = {
   userId: string;
   contractId: string;
   price: bigint;
   qty: number;
   direction: "BUY" | "SELL";
-}) {
+};
+
+// Maintains position using signed quantity semantics mapped to (side, qty)
+export async function updatePositionFromTrade(trade: TradeInput) {
   let position = await prisma.position.findUnique({
     where: {
       userId_contractId: {
@@ -21,41 +24,65 @@ export async function updatePositionFromTrade(trade: {
       data: {
         userId: trade.userId,
         contractId: trade.contractId,
-        netQty: 0,
-        avgPrice: null,
+        side: "BUY",
+        qty: 0,
+        avgPrice: 0n,
         realizedPnl: 0n,
+        unrealizedPnl: 0n,
       },
     });
   }
 
-  let { netQty, avgPrice, realizedPnl } = position;
+  // Represent net position as signed quantity for easier math
+  let signedQty = position.side === "BUY" ? position.qty : -position.qty;
+  const tradeSigned = trade.direction === "BUY" ? trade.qty : -trade.qty;
+  let avgPrice = position.avgPrice ?? 0n;
+  let realizedPnl = position.realizedPnl ?? 0n;
 
-  const tradeQty = trade.qty;
-  const tradePrice = trade.price;
+  const tradePrice = BigInt(trade.price);
 
-  if (trade.direction === "BUY") {
-    // Weighted average price update
-    const totalCost =
-      (avgPrice ? BigInt(avgPrice) * BigInt(netQty) : 0n) +
-      tradePrice * BigInt(tradeQty);
-
-    netQty += tradeQty;
-    avgPrice = netQty > 0 ? totalCost / BigInt(netQty) : null;
+  if (signedQty === 0) {
+    signedQty = tradeSigned;
+    avgPrice = tradePrice;
+  } else if (Math.sign(signedQty) === Math.sign(tradeSigned)) {
+    // Adding to existing direction → weighted average
+    const currentAbs = BigInt(Math.abs(signedQty));
+    const incomingAbs = BigInt(Math.abs(tradeSigned));
+    const totalCost = avgPrice * currentAbs + tradePrice * incomingAbs;
+    signedQty += tradeSigned;
+    const newAbs = BigInt(Math.abs(signedQty));
+    avgPrice = newAbs === 0n ? 0n : totalCost / newAbs;
   } else {
-    // SELL logic
-    if (avgPrice && netQty > 0) {
-      // Realized PnL = (sellPrice - avgPrice) * qty
-      const pnl = (tradePrice - BigInt(avgPrice)) * BigInt(tradeQty);
-      realizedPnl = (realizedPnl || 0n) + pnl;
-    }
+    // Closing or flipping
+    const closeQty = Math.min(Math.abs(tradeSigned), Math.abs(signedQty));
+    const closeQtyBig = BigInt(closeQty);
 
-    netQty -= tradeQty;
+    // Long -> SELL realizes (sell - avg)
+    // Short -> BUY realizes (avg - buy)
+    const pnl =
+      signedQty > 0
+        ? (tradePrice - avgPrice) * closeQtyBig
+        : (avgPrice - tradePrice) * closeQtyBig;
 
-    // If fully closed, reset avg price
-    if (netQty === 0) {
-      avgPrice = null;
+    realizedPnl += pnl;
+
+    const remaining = signedQty + tradeSigned;
+
+    if (remaining === 0) {
+      signedQty = 0;
+      avgPrice = 0n;
+    } else if (Math.sign(remaining) === Math.sign(signedQty)) {
+      // Reduced but same direction; keep avgPrice
+      signedQty = remaining;
+    } else {
+      // Flipped direction; set avg to trade price for new side
+      signedQty = remaining;
+      avgPrice = tradePrice;
     }
   }
+
+  const nextSide = signedQty >= 0 ? "BUY" : "SELL";
+  const nextQty = Math.abs(signedQty);
 
   const updated = await prisma.position.update({
     where: {
@@ -65,9 +92,11 @@ export async function updatePositionFromTrade(trade: {
       },
     },
     data: {
-      netQty,
+      side: nextSide,
+      qty: nextQty,
       avgPrice,
       realizedPnl,
+      unrealizedPnl: 0n,
     },
   });
 

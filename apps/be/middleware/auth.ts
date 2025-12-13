@@ -1,4 +1,4 @@
-import { jwtVerify } from "jsonwebtoken";
+import { verify as jwtVerify } from "jsonwebtoken";
 import { json } from "@repo/utils";
 
 export async function requireAuth(req: Request): Promise<string | Response> {
@@ -9,7 +9,10 @@ export async function requireAuth(req: Request): Promise<string | Response> {
 
   const token = auth.split(" ")[1];
   try {
-    const payload = await jwtVerify(token, process.env.JWT_SECRET!);
+    const payload = (await jwtVerify(
+      token,
+      process.env.JWT_SECRET!,
+    )) as JwtPayload;
     return payload.userId; // Return userId if valid
   } catch {
     return json({ error: "Invalid token" }, 401);

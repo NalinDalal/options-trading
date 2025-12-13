@@ -77,7 +77,7 @@ export async function processPriceUpdate(symbol: string, price: number) {
 // -----------------------------------------------------
 // FILL ORDER
 // -----------------------------------------------------
-async function fillOrder(order: any, fillPrice: bigint) {
+export async function fillOrder(order: any, fillPrice: bigint) {
   const remainingQty = order.qty - order.filledQty;
   if (remainingQty <= 0) return;
 
@@ -117,4 +117,39 @@ async function fillOrder(order: any, fillPrice: bigint) {
   console.log(
     `FILLED ${order.side} order ${order.id} @ ${fillPrice} x ${remainingQty}`,
   );
+}
+
+// -----------------------------------------------------
+// SIMPLE MATCHING ENGINE (placeholder)
+// -----------------------------------------------------
+type MatchResult = {
+  fills: Array<{
+    orderId: string;
+    userId: string;
+    price: bigint;
+    qty: number;
+    direction: "BUY" | "SELL";
+  }>;
+  filledQty: number;
+  status: "PENDING" | "PARTIAL" | "FILLED";
+};
+
+/**
+ * Naive matcher: currently acts as a no-op and leaves orders pending.
+ * Keeps API stable while a real orderbook is implemented.
+ */
+export async function matchOrder(order: {
+  id: string;
+  userId: string;
+  contractId: string;
+  side: "BUY" | "SELL";
+  orderType: "MARKET" | "LIMIT";
+  price: bigint | null;
+  qty: number;
+}): Promise<MatchResult> {
+  return {
+    fills: [],
+    filledQty: 0,
+    status: "PENDING",
+  };
 }

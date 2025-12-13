@@ -1,6 +1,5 @@
 import { prisma } from "@repo/db";
-import { parseJSON } from "@repo/utils";
-import { json } from "../utils/response";
+import { parseJSON, json } from "@repo/utils";
 import { Route } from "../utils/router";
 
 export const priceRoutes: Route[] = [

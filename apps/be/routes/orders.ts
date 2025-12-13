@@ -8,19 +8,30 @@ export const orderRoutes: Route[] = [
   {
     method: "POST",
     path: "/orders",
-    handler: async (req, user) => {
+    auth: true,
+    handler: async (req, { userId }) => {
+      if (!userId) return json({ error: "Unauthorized" }, 401);
       try {
         const body = await parseJSON(req);
         const { contractId, side, price, qty } = body || {};
 
-        if (!contractId || !side || !qty || (!price && side !== "MARKET")) {
+        const isLimitOrder = price !== undefined && price !== null;
+
+        if (!contractId || !side || !qty) {
           return json(
             {
-              error:
-                "Required: contractId, side, qty, price (for limit orders)",
+              error: "Required: contractId, side, qty",
             },
             400,
           );
+        }
+
+        if (side !== "BUY" && side !== "SELL") {
+          return json({ error: "side must be BUY or SELL" }, 400);
+        }
+
+        if (qty <= 0) {
+          return json({ error: "qty must be positive" }, 400);
         }
 
         const contract = await prisma.optionContract.findUnique({
@@ -30,11 +41,11 @@ export const orderRoutes: Route[] = [
 
         const order = await prisma.order.create({
           data: {
-            userId: user.id,
+            userId,
             contractId,
             side,
-            orderType: price ? "LIMIT" : "MARKET",
-            price: price ? BigInt(price) : null,
+            orderType: isLimitOrder ? "LIMIT" : "MARKET",
+            price: isLimitOrder ? BigInt(price) : null,
             qty,
           },
         });
@@ -70,7 +81,7 @@ export const orderRoutes: Route[] = [
         });
 
         // Broadcast to user
-        broadcast(`orders:${user.id}`, {
+        broadcast(`orders:${userId}`, {
           type: "order_update",
           order: finalOrder,
         });
@@ -101,14 +112,16 @@ export const orderRoutes: Route[] = [
   {
     method: "GET",
     path: "/orders",
-    handler: async (req, user) => {
+    auth: true,
+    handler: async (req, { userId }) => {
+      if (!userId) return json({ error: "Unauthorized" }, 401);
       try {
         const url = new URL(req.url);
         const status = url.searchParams.get("status");
 
         const orders = await prisma.order.findMany({
           where: {
-            userId: user.id,
+            userId,
             ...(status ? { status } : {}),
           },
           include: { trades: true },
@@ -126,14 +139,17 @@ export const orderRoutes: Route[] = [
   {
     method: "GET",
     path: "/orders/:id",
-    handler: async (req, user) => {
+    auth: true,
+    handler: async (req, { params, userId }) => {
+      if (!userId) return json({ error: "Unauthorized" }, 401);
+
       try {
-        const orderId = req.params.id;
+        const orderId = params.id;
         const order = await prisma.order.findUnique({
           where: { id: orderId },
           include: { trades: true },
         });
-        if (!order || order.userId !== user.id) {
+        if (!order || order.userId !== userId) {
           return json({ error: "Order not found" }, 404);
         }
         return json({ order });
@@ -148,32 +164,37 @@ export const orderRoutes: Route[] = [
   {
     method: "DELETE",
     path: "/orders/:id",
-    handler: async (req, user) => {
+    auth: true,
+    handler: async (req, { params, userId }) => {
+      if (!userId) return json({ error: "Unauthorized" }, 401);
       try {
-        const orderId = req.params.id;
+        const orderId = params.id;
         const order = await prisma.order.findUnique({ where: { id: orderId } });
-        if (!order || order.userId !== user.id) {
+        if (!order || order.userId !== userId) {
           return json({ error: "Order not found" }, 404);
         }
-        if (order.status !== "OPEN") {
-          return json({ error: "Only open orders can be canceled" }, 400);
+        if (order.status !== "PENDING" && order.status !== "PARTIAL") {
+          return json(
+            { error: "Only pending or partial orders can be canceled" },
+            400,
+          );
         }
 
         await prisma.order.update({
           where: { id: orderId },
-          data: { status: "CANCELED" },
+          data: { status: "CANCELLED" },
         });
 
-        broadcast(`orders:${user.id}`, {
+        broadcast(`orders:${userId}`, {
           type: "order_update",
           orderId,
-          status: "CANCELED",
+          status: "CANCELLED",
         });
 
         broadcast(`orderbook:${order.contractId}`, {
           type: "orderbook_update",
           orderId,
-          status: "CANCELED",
+          status: "CANCELLED",
         });
 
         return json({ success: true });
