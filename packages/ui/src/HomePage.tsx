@@ -1,4 +1,8 @@
 "use client";
+/**
+ * Performs  home page operation.
+ * @returns {React.JSX.Element} Description of return value
+ */
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-50 overflow-hidden font-mono">

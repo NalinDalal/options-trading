@@ -13,6 +13,12 @@ type WSData = {
 const subscribers = new Map<string, Set<ServerWebSocket<WSData>>>();
 
 // WebSocket Handlers
+/**
+ * Performs handle message operation.
+ * @param {Bun.ServerWebSocket<WSData>} ws - Description of ws
+ * @param {string | Buffer} message - Description of message
+ * @returns {void} Description of return value
+ */
 function handleMessage(ws: ServerWebSocket<WSData>, message: string | Buffer) {
   try {
     const data = JSON.parse(message.toString());
@@ -75,6 +81,11 @@ function handleMessage(ws: ServerWebSocket<WSData>, message: string | Buffer) {
   }
 }
 
+/**
+ * Performs handle open operation.
+ * @param {Bun.ServerWebSocket<WSData>} ws - Description of ws
+ * @returns {void} Description of return value
+ */
 function handleOpen(ws: ServerWebSocket<WSData>) {
   console.log(` Client connected: ${ws.data.userId}`);
 
@@ -88,6 +99,11 @@ function handleOpen(ws: ServerWebSocket<WSData>) {
   );
 }
 
+/**
+ * Performs handle close operation.
+ * @param {Bun.ServerWebSocket<WSData>} ws - Description of ws
+ * @returns {void} Description of return value
+ */
 function handleClose(ws: ServerWebSocket<WSData>) {
   console.log(` Client disconnected: ${ws.data.userId}`);
 
@@ -103,6 +119,12 @@ function handleClose(ws: ServerWebSocket<WSData>) {
 }
 
 // Broadcast Functions (Called from REST API)
+/**
+ * Performs broadcast operation.
+ * @param {string} channel - Description of channel
+ * @param {any} message - Description of message
+ * @returns {void} Description of return value
+ */
 export function broadcast(channel: string, message: any) {
   const subs = subscribers.get(channel);
   if (!subs || subs.size === 0) return;
@@ -123,6 +145,12 @@ export function broadcast(channel: string, message: any) {
   console.log(` Broadcasted to ${subs.size} clients on channel: ${channel}`);
 }
 
+/**
+ * Performs broadcast price update operation.
+ * @param {string} symbol - Description of symbol
+ * @param {number} price - Description of price
+ * @returns {void} Description of return value
+ */
 export function broadcastPriceUpdate(symbol: string, price: number) {
   broadcast("prices", {
     type: "price_update",
@@ -131,6 +159,12 @@ export function broadcastPriceUpdate(symbol: string, price: number) {
   });
 }
 
+/**
+ * Performs broadcast position update operation.
+ * @param {string} userId - Description of userId
+ * @param {any} position - Description of position
+ * @returns {void} Description of return value
+ */
 export function broadcastPositionUpdate(userId: string, position: any) {
   broadcast(`positions:${userId}`, {
     type: "position_update",
@@ -138,6 +172,12 @@ export function broadcastPositionUpdate(userId: string, position: any) {
   });
 }
 
+/**
+ * Performs broadcast order update operation.
+ * @param {string} userId - Description of userId
+ * @param {any} order - Description of order
+ * @returns {void} Description of return value
+ */
 export function broadcastOrderUpdate(userId: string, order: any) {
   broadcast(`orders:${userId}`, {
     type: "order_update",

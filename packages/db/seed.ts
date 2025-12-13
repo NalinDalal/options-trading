@@ -1,6 +1,10 @@
 import { prisma } from "./index";
 import { hashPassword } from "@repo/utils";
 
+/**
+ * Performs main operation.
+ * @returns {Promise<void>} Description of return value
+ */
 async function main() {
   console.log("Seeding database...");
 

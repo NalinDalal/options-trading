@@ -9,6 +9,11 @@ type TradeInput = {
 };
 
 // Maintains position using signed quantity semantics mapped to (side, qty)
+/**
+ * Performs update position from trade operation.
+ * @param {TradeInput} trade - Description of trade
+ * @returns {Promise<{ id: string; userId: string; contractId: string; side: import("/Users/nalindalal/exness-ts/packages/db/generated/prisma/enums").Side; avgPrice: bigint; qty: number; realizedPnl: bigint; unrealizedPnl: bigint; createdAt: Date; closedAt: Date; }>} Description of return value
+ */
 export async function updatePositionFromTrade(trade: TradeInput) {
   let position = await prisma.position.findUnique({
     where: {

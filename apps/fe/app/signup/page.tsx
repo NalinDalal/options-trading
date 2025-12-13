@@ -3,7 +3,14 @@ import { useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-const signUp = async (email: string, password: string, name: string) => {
+const signUp = /**
+ * Executes sign up operation.
+ * @param {string} email - Description of email
+ * @param {string} password - Description of password
+ * @param {string} name - Description of name
+ * @returns {Promise<any>} Description of return value
+ */
+async (email: string, password: string, name: string) => {
   const response = await fetch(`${API_URL}/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -14,6 +21,10 @@ const signUp = async (email: string, password: string, name: string) => {
   return data;
 };
 
+/**
+ * Performs  sign up operation.
+ * @returns {React.JSX.Element} Description of return value
+ */
 export default function SignUp() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");

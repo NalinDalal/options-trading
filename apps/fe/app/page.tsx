@@ -1,6 +1,10 @@
 "use client";
 export const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+/**
+ * Performs  trading landing operation.
+ * @returns {React.JSX.Element} Description of return value
+ */
 export default function TradingLanding() {
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-hidden">

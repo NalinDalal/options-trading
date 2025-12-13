@@ -4,7 +4,13 @@ import { useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-const signIn = async (email: string, password: string) => {
+const signIn = /**
+ * Executes sign in operation.
+ * @param {string} email - Description of email
+ * @param {string} password - Description of password
+ * @returns {Promise<any>} Description of return value
+ */
+async (email: string, password: string) => {
   const response = await fetch(`${API_URL}/signin`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -16,6 +22,10 @@ const signIn = async (email: string, password: string) => {
   return data;
 };
 
+/**
+ * Performs  sign in operation.
+ * @returns {React.JSX.Element} Description of return value
+ */
 export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

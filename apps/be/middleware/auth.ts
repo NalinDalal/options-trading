@@ -1,6 +1,11 @@
 import { verify as jwtVerify } from "jsonwebtoken";
 import { json } from "@repo/utils";
 
+/**
+ * Performs require auth operation.
+ * @param {Request} req - Description of req
+ * @returns {Promise<string | Response>} Description of return value
+ */
 export async function requireAuth(req: Request): Promise<string | Response> {
   const auth = req.headers.get("authorization");
   if (!auth?.startsWith("Bearer ")) {

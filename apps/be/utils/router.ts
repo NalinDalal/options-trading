@@ -11,6 +11,12 @@ export type Route = {
   auth?: boolean;
 };
 
+/**
+ * Performs match string path operation.
+ * @param {string} pathname - Description of pathname
+ * @param {string} pattern - Description of pattern
+ * @returns {Record<string, string>} Description of return value
+ */
 function matchStringPath(pathname: string, pattern: string) {
   // Support express-style segments: /orders/:id
   if (!pattern.includes(":")) return pathname === pattern ? {} : null;
@@ -35,6 +41,12 @@ function matchStringPath(pathname: string, pattern: string) {
   return params;
 }
 
+/**
+ * Performs router operation.
+ * @param {Request} req - Description of req
+ * @param {import("/Users/nalindalal/exness-ts/apps/be/utils/router").Route[]} routes - Description of routes
+ * @returns {Promise<Response>} Description of return value
+ */
 export async function router(req: Request, routes: Route[]) {
   const url = new URL(req.url);
   const method = req.method;

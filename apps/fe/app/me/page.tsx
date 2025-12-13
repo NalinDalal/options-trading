@@ -8,6 +8,10 @@ interface User {
   email: string;
 }
 
+/**
+ * Performs  me page operation.
+ * @returns {React.JSX.Element} Description of return value
+ */
 export default function MePage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);

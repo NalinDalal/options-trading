@@ -17,6 +17,21 @@ type FillCheckParams = {
   currentPrice: bigint;
 };
 
+/**
+ * Performs should fill operation.
+ * @param {FillCheckParams} {
+ *   side,
+ *   orderType,
+ *   limitPrice,
+ *   currentPrice,
+ * } - Description of {
+ *   side,
+ *   orderType,
+ *   limitPrice,
+ *   currentPrice,
+ * }
+ * @returns {boolean} Description of return value
+ */
 function shouldFill({
   side,
   orderType,
@@ -36,6 +51,12 @@ function shouldFill({
 // -----------------------------------------------------
 // MAIN ENTRY: called from POST /prices/update
 // -----------------------------------------------------
+/**
+ * Performs process price update operation.
+ * @param {string} symbol - Description of symbol
+ * @param {number} price - Description of price
+ * @returns {Promise<void>} Description of return value
+ */
 export async function processPriceUpdate(symbol: string, price: number) {
   const currentPrice = BigInt(Math.round(price));
 
@@ -77,6 +98,12 @@ export async function processPriceUpdate(symbol: string, price: number) {
 // -----------------------------------------------------
 // FILL ORDER
 // -----------------------------------------------------
+/**
+ * Performs fill order operation.
+ * @param {any} order - Description of order
+ * @param {bigint} fillPrice - Description of fillPrice
+ * @returns {Promise<void>} Description of return value
+ */
 export async function fillOrder(order: any, fillPrice: bigint) {
   const remainingQty = order.qty - order.filledQty;
   if (remainingQty <= 0) return;
