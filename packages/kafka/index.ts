@@ -24,6 +24,10 @@ export const TOPICS = {
 
 let isProducerConnected = false;
 
+/**
+ * Performs init kafka producer operation.
+ * @returns {Promise<import("/Users/nalindalal/options-trading/node_modules/Kafkajs/types/index").Producer>} Description of return value
+ */
 export async function initKafkaProducer() {
   if (!isProducerConnected) {
     await producer.connect();
@@ -33,6 +37,10 @@ export async function initKafkaProducer() {
   return producer;
 }
 
+/**
+ * Performs disconnect kafka producer operation.
+ * @returns {Promise<void>} Description of return value
+ */
 export async function disconnectKafkaProducer() {
   if (isProducerConnected) {
     await producer.disconnect();

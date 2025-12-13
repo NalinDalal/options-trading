@@ -29,6 +29,13 @@ project.addSourceFilesAtPaths([
   "packages/db/**/*.ts",
   // UI React components
   "packages/ui/**/*.tsx",
+
+  //Price Poller and Engine
+  "apps/price-poller/*.ts",
+  "apps/price-engine/*.ts",
+
+  //Kafka
+  "packages/kafka/**/*.ts",
 ]);
 
 const files = project.getSourceFiles();

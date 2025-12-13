@@ -7,6 +7,10 @@ type PriceTick = {
   ts: number;
 };
 
+/**
+ * Performs fetch prices operation.
+ * @returns {Promise<PriceTick[]>} Description of return value
+ */
 async function fetchPrices(): Promise<PriceTick[]> {
   // mock for now
   return [
@@ -19,10 +23,19 @@ async function fetchPrices(): Promise<PriceTick[]> {
   ];
 }
 
+/**
+ * Performs sleep operation.
+ * @param {number} ms - Description of ms
+ * @returns {Promise<unknown>} Description of return value
+ */
 async function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/**
+ * Performs start operation.
+ * @returns {Promise<void>} Description of return value
+ */
 async function start() {
   const producer = await initKafkaProducer();
   console.log(" Price Poller started");

@@ -9,6 +9,10 @@ type PriceTick = {
   ts: number;
 };
 
+/**
+ * Performs start operation.
+ * @returns {Promise<void>} Description of return value
+ */
 async function start() {
   await consumer.connect();
   await consumer.subscribe({
