@@ -83,3 +83,43 @@ orderbook:{contractId} → contract-level updates
 trades:{contractId} → global trade feed
 
 when be changes state-> push to ws -> push to fe
+
+---
+
+well we added kafka, as we needed some producer and consumer that badically puts data into poller
+as poller is important for fast transaction of data
+
+well we added kafka, as we needed some producer and consumer that basically puts data into poller
+as poller is important for fast transaction of data(Fetch prices, Normalize, Publish events)
+
+[ External Price Source ]
+|
+v
+[ price-poller ] ← simple loop / API / FIX / mock
+|
+| (Kafka PRODUCE)
+v
+Kafka
+|
+| (Kafka CONSUME)
+v
+[ price-engine ] ← pricing logic, DB, derivations
+|
+| (event / pubsub)
+v
+[ ws-gateway ] ← persistent client connections
+|
+v
+[ Frontend ]
+
+> > > **price-poller**
+
+    - generates (or fetches) prices
+    - sends them in order per instrument
+    `key = underlyingId`
+
+> > > price-engine
+
+    - consumes prices
+    - processes sequentially per underlying
+    - scales horizontally across partitions
