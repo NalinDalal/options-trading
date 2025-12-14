@@ -1,5 +1,5 @@
 {
-  "name": "@repo/ws",
+  "name": "ws",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -13,5 +13,8 @@
     "dotenv": "^17.2.3",
     "jsonwebtoken": "^9.0.3",
     "ws": "^8.18.3"
+  },
+  "scripts": {
+    "dev": "bun run index.ts"
   }
 }

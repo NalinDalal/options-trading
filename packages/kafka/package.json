@@ -1,5 +1,5 @@
 {
-  "name": "kafka",
+  "name": "@repo/kafka",
   "module": "index.ts",
   "type": "module",
   "private": true,

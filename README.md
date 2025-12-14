@@ -173,3 +173,15 @@ Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJlYzU0MzhhYi1lZGRiLTRk
 to do, check out how microservices will work
 you have init ui, auth, now check how to trade things
 how will things like ws, redis come in hand ; price polling
+
+done
+
+setup kafka:
+
+```sh
+docker run -d --name kafka -p 9092:9092 \
+  -e KAFKA_CFG_LISTENERS=PLAINTEXT://0.0.0.0:9092 \
+  -e KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+  bitnami/kafka:latest
+
+```

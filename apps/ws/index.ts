@@ -185,111 +185,126 @@ export function broadcastOrderUpdate(userId: string, order: any) {
   });
 }
 
-// Start WebSocket Server
-serve({
-  port: WS_PORT,
+// Adapter for price engine expected export
+export async function publishPriceUpdate({
+  underlyingId,
+  price,
+  ts,
+}: {
+  underlyingId: string;
+  price: number;
+  ts: number;
+}) {
+  broadcastPriceUpdate(underlyingId, price);
+}
 
-  async fetch(req, server) {
-    // Only accept WebSocket upgrades
-    if (req.headers.get("upgrade") !== "websocket") {
-      return new Response("WebSocket server only", { status: 400 });
-    }
+// Start servers only when run directly, not when imported
+if (import.meta.main) {
+  // Start WebSocket Server
+  serve({
+    port: WS_PORT,
 
-    // Extract and verify JWT token
-    const url = new URL(req.url);
-    const token = url.searchParams.get("token");
-
-    if (!token) {
-      return new Response("Missing token", { status: 401 });
-    }
-
-    try {
-      const payload = jwtVerify(token, process.env.JWT_SECRET!) as any;
-
-      const upgraded = server.upgrade(req, {
-        data: {
-          userId: payload.userId,
-          subscriptions: new Set<string>(),
-        },
-      });
-
-      if (!upgraded) {
-        return new Response("WebSocket upgrade failed", { status: 500 });
+    async fetch(req, server) {
+      // Only accept WebSocket upgrades
+      if (req.headers.get("upgrade") !== "websocket") {
+        return new Response("WebSocket server only", { status: 400 });
       }
 
-      return undefined;
-    } catch (err) {
-      return new Response("Invalid token", { status: 401 });
-    }
-  },
+      // Extract and verify JWT token
+      const url = new URL(req.url);
+      const token = url.searchParams.get("token");
 
-  websocket: {
-    message: handleMessage,
-    open: handleOpen,
-    close: handleClose,
-  },
-});
+      if (!token) {
+        return new Response("Missing token", { status: 401 });
+      }
 
-console.log(` WebSocket server running on ws://localhost:${WS_PORT}`);
-
-// HTTP API for Broadcasting (for REST server to call)
-const HTTP_PORT = Number(process.env.WS_HTTP_PORT || 3003);
-
-serve({
-  port: HTTP_PORT,
-
-  async fetch(req) {
-    const url = new URL(req.url);
-
-    // CORS headers
-    const headers = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST",
-      "Content-Type": "application/json",
-    };
-
-    if (req.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers });
-    }
-
-    // POST /broadcast - Broadcast to a channel
-    if (url.pathname === "/broadcast" && req.method === "POST") {
       try {
-        const body = await req.json();
-        const { channel, message } = body;
+        const payload = jwtVerify(token, process.env.JWT_SECRET!) as any;
 
-        if (!channel || !message) {
-          return new Response(
-            JSON.stringify({ error: "channel and message required" }),
-            { status: 400, headers },
-          );
+        const upgraded = server.upgrade(req, {
+          data: {
+            userId: payload.userId,
+            subscriptions: new Set<string>(),
+          },
+        });
+
+        if (!upgraded) {
+          return new Response("WebSocket upgrade failed", { status: 500 });
         }
 
-        broadcast(channel, message);
-
-        return new Response(JSON.stringify({ success: true }), {
-          status: 200,
-          headers,
-        });
+        return undefined;
       } catch (err) {
-        return new Response(JSON.stringify({ error: "Internal error" }), {
-          status: 500,
-          headers,
-        });
+        return new Response("Invalid token", { status: 401 });
       }
-    }
+    },
 
-    return new Response("Not found", { status: 404 });
-  },
-});
+    websocket: {
+      message: handleMessage,
+      open: handleOpen,
+      close: handleClose,
+    },
+  });
 
-console.log(` WS HTTP API running on http://localhost:${WS_PORT}`);
+  console.log(` WebSocket server running on ws://localhost:${WS_PORT}`);
 
-// Health check & stats endpoint
-setInterval(() => {
-  console.log(
-    `Active connections: ${Array.from(subscribers.values()).reduce((sum, set) => sum + set.size, 0)}`,
-  );
-  console.log(` Active channels: ${subscribers.size}`);
-}, 30000); // Every 30 seconds
+  // HTTP API for Broadcasting (for REST server to call)
+  const HTTP_PORT = Number(process.env.WS_HTTP_PORT || 3003);
 
+  serve({
+    port: HTTP_PORT,
+
+    async fetch(req) {
+      const url = new URL(req.url);
+
+      // CORS headers
+      const headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST",
+        "Content-Type": "application/json",
+      };
+
+      if (req.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers });
+      }
+
+      // POST /broadcast - Broadcast to a channel
+      if (url.pathname === "/broadcast" && req.method === "POST") {
+        try {
+          const body = await req.json();
+          const { channel, message } = body;
+
+          if (!channel || !message) {
+            return new Response(
+              JSON.stringify({ error: "channel and message required" }),
+              { status: 400, headers },
+            );
+          }
+
+          broadcast(channel, message);
+
+          return new Response(JSON.stringify({ success: true }), {
+            status: 200,
+            headers,
+          });
+        } catch (err) {
+          return new Response(JSON.stringify({ error: "Internal error" }), {
+            status: 500,
+            headers,
+          });
+        }
+      }
+
+      return new Response("Not found", { status: 404 });
+    },
+  });
+
+  console.log(` WS HTTP API running on http://localhost:${WS_PORT}`);
+
+  // Health check & stats endpoint
+  setInterval(() => {
+    console.log(
+      `Active connections: ${Array.from(subscribers.values()).reduce((sum, set) => sum + set.size, 0)}`,
+    );
+    console.log(` Active channels: ${subscribers.size}`);
+  }, 30000); // Every 30 seconds
+}
