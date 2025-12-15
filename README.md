@@ -179,9 +179,24 @@ done
 setup kafka:
 
 ```sh
-docker run -d --name kafka -p 9092:9092 \
-  -e KAFKA_CFG_LISTENERS=PLAINTEXT://0.0.0.0:9092 \
-  -e KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
-  bitnami/kafka:latest
-
+docker run --rm confluentinc/cp-kafka:7.6.0 \
+          kafka-storage random-uuid
 ```
+
+copy over uuid
+
+```sh
+docker run -d --name kafka \
+          -p 9092:9092 \
+          -e KAFKA_NODE_ID=1 \
+          -e KAFKA_PROCESS_ROLES=broker,controller \
+          -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 \
+          -e KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093 \
+          -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+          -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT \
+          -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+          -e KAFKA_CLUSTER_ID=<UUID> \
+          confluentinc/cp-kafka:7.6.0
+```
+
+need to figure out how kafka sits in picture
