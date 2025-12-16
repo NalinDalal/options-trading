@@ -32,7 +32,6 @@ function startWsServer(port: number) {
   });
 }
 
-startWsServer(Number(process.env.WS_PORT || 3002));
 startKafkaConsumer().catch((e) => {
   console.error("Failed to start WS Kafka consumer", e);
 });

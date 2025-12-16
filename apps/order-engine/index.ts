@@ -1,5 +1,4 @@
-import { consumer, producer } from "@repo/kafka";
-import { TOPICS } from "@repo/kafka/topics";
+import { consumer, producer, TOPICS } from "@repo/kafka";
 import { prisma } from "@repo/db";
 import { matchOrder } from "@be/utils/matchingEngine";
 

@@ -1,5 +1,6 @@
 import { Kafka } from "kafkajs";
 import { config } from "./config";
+import { TOPICS } from "./topics";
 
 export const kafka = new Kafka({
   clientId: "options-trading",
@@ -11,3 +12,5 @@ export const producer = kafka.producer({
 });
 
 export const consumer = kafka.consumer({ groupId: "options-trading-group" });
+
+export { TOPICS };
