@@ -1,12 +1,26 @@
 import { prisma } from "@repo/db";
 import { parseJSON, json } from "@repo/utils";
 import type { Route } from "../utils/router";
-import { producer } from "@repo/kafka";
+import { initKafkaProducer } from "@repo/kafka/producer";
 import { TOPICS } from "@repo/kafka/topics";
 
-//import { matchOrder } from "../utils/matchingEngine";
-//import { broadcast } from "@repo/ws";
+/**
+ * NOTE:
+ * HTTP layer only accepts intent and emits commands.
+ * All matching, fills, and state transitions happen
+ * asynchronously via Kafka-driven engines.
+ *
+ * This keeps the exchange core deterministic,
+ * replayable, and horizontally scalable.
+ */
 
+/**
+ *TODO:
+ * 1. Write order-engine Kafka consumer
+ * 2. Plug in your existing matchingEngine
+ * 3. Emit proper events
+ * 4. Wire WS gateway to Kafka (no direct calls)
+ */
 export const orderRoutes: Route[] = [
   {
     method: "POST",
@@ -42,68 +56,29 @@ export const orderRoutes: Route[] = [
         });
         if (!contract) return json({ error: "Invalid contractId" }, 404);
 
-        const order = await prisma.order.create({
-          data: {
-            userId,
-            contractId,
-            side,
-            orderType: isLimitOrder ? "LIMIT" : "MARKET",
-            price: isLimitOrder ? BigInt(price) : null,
-            qty,
-          },
-        });
-
-        // Run matching engine
-        const matchResult = await matchOrder(order);
-
-        // Persist trades
-        for (const fill of matchResult.fills) {
-          await prisma.trade.create({
-            data: {
-              orderId: fill.orderId,
-              userId: fill.userId,
-              price: BigInt(fill.price),
-              qty: fill.qty,
-              direction: fill.direction,
+        // Emit command to Kafka; engine will persist and process
+        const producer = await initKafkaProducer();
+        await producer.send({
+          topic: TOPICS.ORDER_COMMANDS,
+          messages: [
+            {
+              key: contractId,
+              value: JSON.stringify({
+                type: "PLACE_ORDER",
+                payload: {
+                  userId,
+                  contractId,
+                  side,
+                  orderType: isLimitOrder ? "LIMIT" : "MARKET",
+                  price: isLimitOrder ? Number(price) : null,
+                  qty,
+                },
+              }),
             },
-          });
-        }
-
-        // Update order status + filledQty
-        await prisma.order.update({
-          where: { id: order.id },
-          data: {
-            filledQty: matchResult.filledQty,
-            status: matchResult.status,
-          },
+          ],
         });
 
-        const finalOrder = await prisma.order.findUnique({
-          where: { id: order.id },
-          include: { trades: true },
-        });
-
-        // Broadcast to user
-        broadcast(`orders:${userId}`, {
-          type: "order_update",
-          order: finalOrder,
-        });
-
-        // Broadcast to contract-level public channel
-        broadcast(`orderbook:${contractId}`, {
-          type: "orderbook_update",
-          order: finalOrder,
-        });
-
-        // Broadcast trades globally for charting
-        for (const fill of matchResult.fills) {
-          broadcast(`trades:${contractId}`, {
-            type: "trade",
-            trade: fill,
-          });
-        }
-
-        return json({ order: finalOrder });
+        return json({ accepted: true });
       } catch (err) {
         console.error("ORDER CREATE ERROR:", err);
         return json({ error: "Internal error" }, 500);
@@ -183,24 +158,22 @@ export const orderRoutes: Route[] = [
           );
         }
 
-        await prisma.order.update({
-          where: { id: orderId },
-          data: { status: "CANCELLED" },
+        // Emit cancel command to Kafka
+        const producer = await initKafkaProducer();
+        await producer.send({
+          topic: TOPICS.ORDER_COMMANDS,
+          messages: [
+            {
+              key: order.contractId,
+              value: JSON.stringify({
+                type: "CANCEL_ORDER",
+                payload: { userId, orderId },
+              }),
+            },
+          ],
         });
 
-        broadcast(`orders:${userId}`, {
-          type: "order_update",
-          orderId,
-          status: "CANCELLED",
-        });
-
-        broadcast(`orderbook:${order.contractId}`, {
-          type: "orderbook_update",
-          orderId,
-          status: "CANCELLED",
-        });
-
-        return json({ success: true });
+        return json({ accepted: true });
       } catch (err) {
         console.error("CANCEL ORDER ERROR:", err);
         return json({ error: "Internal error" }, 500);

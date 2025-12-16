@@ -6,8 +6,6 @@ import { underlyingRoutes } from "./routes/underlyings";
 import { contractRoutes } from "./routes/contracts";
 import { priceRoutes } from "./routes/prices";
 
-import { broadcast } from "@repo/ws";
-
 import { orderRoutes } from "./routes/orders";
 
 const port = Number(process.env.PORT || 3001);

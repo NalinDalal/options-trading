@@ -1,9 +1,6 @@
 import { prisma } from "@repo/db";
-import {
-  broadcastPriceUpdate,
-  broadcastOrderUpdate,
-  broadcastPositionUpdate,
-} from "@repo/ws";
+import { producer } from "@repo/kafka";
+import { TOPICS } from "@repo/kafka/topics";
 
 import { updatePositionFromTrade } from "../services/positions";
 
@@ -65,7 +62,26 @@ export async function processPriceUpdate(symbol: string, price: number) {
   });
   if (!underlying) return;
 
-  broadcastPriceUpdate(symbol, price);
+  // Price updates should be published to Kafka; WS will fan-out
+  try {
+    await producer.connect();
+    await producer.send({
+      topic: TOPICS.PRICE_UPDATES,
+      messages: [
+        {
+          key: underlying.id,
+          value: JSON.stringify({
+            symbol,
+            price,
+            underlyingId: underlying.id,
+            ts: Date.now(),
+          }),
+        },
+      ],
+    });
+  } catch (e) {
+    console.error("Failed to publish PRICE_UPDATES", e);
+  }
 
   const contracts = await prisma.optionContract.findMany({
     where: { underlyingId: underlying.id },
@@ -137,9 +153,57 @@ export async function fillOrder(order: any, fillPrice: bigint) {
     direction: order.side,
   });
 
-  // 4) Broadcast events
-  broadcastOrderUpdate(order.userId, updatedOrder);
-  broadcastPositionUpdate(order.userId, updatedPosition);
+  // 4) Emit events to Kafka; WS will consume and broadcast
+  try {
+    await producer.connect();
+    await producer.send({
+      topic: TOPICS.ORDER_EVENTS,
+      messages: [
+        {
+          key: order.contractId,
+          value: JSON.stringify({
+            type: "ORDER_UPDATED",
+            userId: order.userId,
+            order: updatedOrder,
+          }),
+        },
+      ],
+    });
+
+    // Emit trade event for the created trade
+    await producer.send({
+      topic: TOPICS.TRADE_EVENTS,
+      messages: [
+        {
+          key: order.contractId,
+          value: JSON.stringify({
+            type: "TRADE_EXECUTED",
+            contractId: order.contractId,
+            trade,
+          }),
+        },
+      ],
+    });
+
+    // Optionally also emit position updates if consumers care
+    if ((TOPICS as any).POSITION_EVENTS) {
+      await producer.send({
+        topic: (TOPICS as any).POSITION_EVENTS,
+        messages: [
+          {
+            key: order.contractId,
+            value: JSON.stringify({
+              type: "POSITION_UPDATED",
+              userId: order.userId,
+              position: updatedPosition,
+            }),
+          },
+        ],
+      });
+    }
+  } catch (e) {
+    console.error("Failed to publish order/trade/position events", e);
+  }
 
   console.log(
     `FILLED ${order.side} order ${order.id} @ ${fillPrice} x ${remainingQty}`,

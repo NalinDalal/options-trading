@@ -1,6 +1,8 @@
 import { prisma } from "@repo/db";
 import { parseJSON, json } from "@repo/utils";
 import { Route } from "../utils/router";
+import { initKafkaProducer } from "@repo/kafka/producer";
+import { TOPICS } from "@repo/kafka/topics";
 
 export const priceRoutes: Route[] = [
   // UPDATE UNDERLYING PRICE
@@ -23,21 +25,22 @@ export const priceRoutes: Route[] = [
           },
         });
 
-        //
-        // Broadcast to WS server
-        await fetch("http://localhost:3003/broadcast", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            channel: "prices",
-            message: {
-              type: "price_update",
-              symbol: underlying.symbol,
-              price: Number(underlying.currentPrice),
+        // Publish price update to Kafka; WS will broadcast
+        const producer = await initKafkaProducer();
+        await producer.send({
+          topic: TOPICS.PRICE_UPDATES,
+          messages: [
+            {
+              key: underlying.id,
+              value: JSON.stringify({
+                symbol: underlying.symbol,
+                underlyingId: underlying.id,
+                price: Number(underlying.currentPrice),
+                ts: Date.now(),
+              }),
             },
-          }),
+          ],
         });
-        //
 
         return json({ underlying });
       } catch (err) {

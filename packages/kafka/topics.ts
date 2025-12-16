@@ -8,4 +8,7 @@ export const TOPICS = {
 
   // trade domain
   TRADE_EVENTS: "trade.events", // key = contractId
+
+  // position domain
+  POSITION_EVENTS: "position.events", // key = contractId
 } as const;

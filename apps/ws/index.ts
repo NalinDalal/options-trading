@@ -2,7 +2,9 @@ import { serve } from "bun";
 import { handleMessage } from "./handlers/message";
 import { handleOpen, handleClose } from "./handlers/connection";
 import { verifyJwt } from "./auth/verifyJwt";
+import { startKafkaConsumer } from "./kafkaConsumer";
 import "dotenv/config";
+
 function startWsServer(port: number) {
   serve({
     port,
@@ -31,3 +33,6 @@ function startWsServer(port: number) {
 }
 
 startWsServer(Number(process.env.WS_PORT || 3002));
+startKafkaConsumer().catch((e) => {
+  console.error("Failed to start WS Kafka consumer", e);
+});
