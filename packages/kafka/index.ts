@@ -14,3 +14,12 @@ export const producer = kafka.producer({
 export const consumer = kafka.consumer({ groupId: "options-trading-group" });
 
 export { TOPICS };
+export * from "./topics";
+
+export * from "./events/price";
+export * from "./events/order";
+export * from "./events/trade";
+export * from "./events/position";
+
+export * from "./producer";
+export * from "./consumer";

@@ -1,4 +1,4 @@
-import { consumer, TOPICS } from "@repo/kafka";
+import { consumer, producer, TOPICS } from "@repo/kafka";
 import { prisma } from "@repo/db";
 import { publishPriceUpdate } from "@repo/ws";
 
@@ -44,11 +44,18 @@ async function start() {
         ts: tick.ts,
       });
 
-      // 3. (Later) trigger matching engine via Kafka
-      // produce to TOPICS.MATCH_PRICE
+      // 3. Emit derived event
+      await producer.send({
+        topic: TOPICS.PRICE_EVENTS,
+        messages: [
+          {
+            key: tick.underlyingId,
+            value: JSON.stringify(tick),
+          },
+        ],
+      });
     },
   });
 }
 
 start().catch(console.error);
-

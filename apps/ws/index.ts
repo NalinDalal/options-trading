@@ -35,3 +35,16 @@ function startWsServer(port: number) {
 startKafkaConsumer().catch((e) => {
   console.error("Failed to start WS Kafka consumer", e);
 });
+
+/**
+ * WebSocket Gateway
+ *
+ * Responsibilities:
+ * - Authenticate WS connections
+ * - Track per-connection subscriptions
+ * - Consume Kafka domain events
+ * - Fan-out events to subscribed clients
+ *
+ * This service contains NO business logic.
+ * It is purely an event-to-socket bridge.
+ */

@@ -123,3 +123,10 @@ v
     - consumes prices
     - processes sequentially per underlying
     - scales horizontally across partitions
+
+---
+
+well we were using a feed from external service, let's write our own algo
+
+price-engine → Kafka (PRICE_EVENTS)
+ws-gateway → consumes → WS broadcast

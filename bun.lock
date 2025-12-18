@@ -60,6 +60,15 @@
         "typescript": "^5",
       },
     },
+    "apps/price-feeder": {
+      "name": "price-feeder",
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
     "apps/price-poller": {
       "name": "price-poller",
       "devDependencies": {
@@ -1073,6 +1082,8 @@
     "prettier": ["prettier@3.7.4", "", { "bin": { "prettier": "bin/prettier.cjs" } }, "sha512-v6UNi1+3hSlVvv8fSaoUbggEM5VErKmmpGA7Pl3HF8V6uKY7rvClBOJlH6yNwQtfTueNkGVpOv/mtWL9L4bgRA=="],
 
     "price-engine": ["price-engine@workspace:apps/price-engine"],
+
+    "price-feeder": ["price-feeder@workspace:apps/price-feeder"],
 
     "price-poller": ["price-poller@workspace:apps/price-poller"],
 
