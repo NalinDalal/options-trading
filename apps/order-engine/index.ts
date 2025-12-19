@@ -1,6 +1,7 @@
 import { consumer, producer, TOPICS } from "@repo/kafka";
 import { prisma } from "@repo/db";
 import { matchOrder } from "@be/utils/matchingEngine";
+import { updatePositionFromTrade } from "@be/services/positions";
 
 type OrderCommand =
   | {
@@ -22,11 +23,20 @@ type OrderCommand =
       };
     };
 
+/**
+ * Performs ensure kafka operation.
+ * @returns {Promise<void>} Description of return value
+ */
 async function ensureKafka() {
   await producer.connect();
   await consumer.connect();
 }
 
+/**
+ * Performs on place order operation.
+ * @param {{ type: "PLACE_ORDER"; payload: { userId: string; contractId: string; side: "BUY" | "SELL"; orderType: "MARKET" | "LIMIT"; price?: number; qty: number; }; }} cmd - Description of cmd
+ * @returns {Promise<void>} Description of return value
+ */
 async function onPlaceOrder(
   cmd: Extract<OrderCommand, { type: "PLACE_ORDER" }>,
 ) {
@@ -59,43 +69,99 @@ async function onPlaceOrder(
     ],
   });
 
-  // Try to match immediately (placeholder engine returns PENDING)
+  // Try to match immediately
   try {
     const result = await matchOrder(order);
 
-    if (result.fills.length > 0 || result.status !== "PENDING") {
-      // Persist trades (if any)
+    // Process fills and update orders
+    if (result.fills.length > 0) {
+      // Group fills by orderId
+      const fillsByOrderId: Record<string, typeof result.fills> = {};
       for (const fill of result.fills) {
-        const trade = await prisma.trade.create({
-          data: {
-            orderId: fill.orderId,
+        if (!fillsByOrderId[fill.orderId]) {
+          fillsByOrderId[fill.orderId] = [];
+        }
+        fillsByOrderId[fill.orderId].push(fill);
+      }
+
+      // Process each order's fills
+      for (const [orderId, orderFills] of Object.entries(fillsByOrderId)) {
+        const orderFillsQty = orderFills.reduce((sum, f) => sum + f.qty, 0);
+        const fillOrder = await prisma.order.findUnique({
+          where: { id: orderId },
+        });
+
+        if (!fillOrder) continue;
+
+        // Create trades for each fill
+        for (const fill of orderFills) {
+          const trade = await prisma.trade.create({
+            data: {
+              orderId: fill.orderId,
+              userId: fill.userId,
+              price: fill.price,
+              qty: fill.qty,
+              direction: fill.direction,
+            },
+          });
+
+          // Update position
+          await updatePositionFromTrade({
             userId: fill.userId,
-            price: BigInt(fill.price),
+            contractId,
+            price: fill.price,
             qty: fill.qty,
             direction: fill.direction,
-          },
+          });
+
+          // Emit trade event
+          await producer.send({
+            topic: TOPICS.TRADE_EVENTS,
+            messages: [
+              {
+                key: contractId,
+                value: JSON.stringify({
+                  type: "TRADE_EXECUTED",
+                  contractId,
+                  trade,
+                }),
+              },
+            ],
+          });
+        }
+
+        // Update order status
+        const newFilledQty = fillOrder.filledQty + orderFillsQty;
+        const orderStatus =
+          newFilledQty >= fillOrder.qty
+            ? "FILLED"
+            : newFilledQty > 0
+              ? "PARTIAL"
+              : "PENDING";
+
+        const updated = await prisma.order.update({
+          where: { id: orderId },
+          data: { status: orderStatus, filledQty: newFilledQty },
         });
 
         await producer.send({
-          topic: TOPICS.TRADE_EVENTS,
+          topic: TOPICS.ORDER_EVENTS,
           messages: [
             {
               key: contractId,
               value: JSON.stringify({
-                type: "TRADE_EXECUTED",
-                contractId,
-                trade,
+                type: "ORDER_UPDATED",
+                userId: fillOrder.userId,
+                order: updated,
               }),
             },
           ],
         });
       }
+    }
 
-      const updated = await prisma.order.update({
-        where: { id: order.id },
-        data: { status: result.status, filledQty: result.filledQty },
-      });
-
+    // If order is still pending, update its status
+    if (result.status === "PENDING") {
       await producer.send({
         topic: TOPICS.ORDER_EVENTS,
         messages: [
@@ -104,7 +170,7 @@ async function onPlaceOrder(
             value: JSON.stringify({
               type: "ORDER_UPDATED",
               userId,
-              order: updated,
+              order,
             }),
           },
         ],
@@ -115,6 +181,11 @@ async function onPlaceOrder(
   }
 }
 
+/**
+ * Performs on cancel order operation.
+ * @param {{ type: "CANCEL_ORDER"; payload: { userId: string; orderId: string; }; }} cmd - Description of cmd
+ * @returns {Promise<void>} Description of return value
+ */
 async function onCancelOrder(
   cmd: Extract<OrderCommand, { type: "CANCEL_ORDER" }>,
 ) {
@@ -144,6 +215,10 @@ async function onCancelOrder(
   });
 }
 
+/**
+ * Performs start operation.
+ * @returns {Promise<void>} Description of return value
+ */
 async function start() {
   await ensureKafka();
   await consumer.subscribe({
@@ -175,4 +250,3 @@ start().catch((e) => {
   console.error(e);
   process.exit(1);
 });
-

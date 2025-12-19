@@ -71,6 +71,8 @@ model Position {
   closedAt      DateTime?
   contract      OptionContract @relation(fields: [contractId], references: [id])
   user          User           @relation(fields: [userId], references: [id])
+
+  @@unique([userId, contractId])
 }
 
 model Trade {

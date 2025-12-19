@@ -1,3 +1,4 @@
+// NOTE: Pure matching logic. No IO here.
 import { prisma } from "@repo/db";
 import { producer } from "@repo/kafka";
 import { TOPICS } from "@repo/kafka/topics";
@@ -45,174 +46,115 @@ function shouldFill({
   return false;
 }
 
-// -----------------------------------------------------
-// MAIN ENTRY: called from POST /prices/update
-// -----------------------------------------------------
-/**
- * Performs process price update operation.
- * @param {string} symbol - Description of symbol
- * @param {number} price - Description of price
- * @returns {Promise<void>} Description of return value
- */
-export async function processPriceUpdate(symbol: string, price: number) {
-  const currentPrice = BigInt(Math.round(price));
+// ----------------------
+// ORDER BOOK MANAGEMENT
+// ----------------------
 
-  const underlying = await prisma.underlying.findFirst({
-    where: { symbol },
-  });
-  if (!underlying) return;
-
-  // Price updates should be published to Kafka; WS will fan-out
-  try {
-    await producer.connect();
-    await producer.send({
-      topic: TOPICS.PRICE_UPDATES,
-      messages: [
-        {
-          key: underlying.id,
-          value: JSON.stringify({
-            symbol,
-            price,
-            underlyingId: underlying.id,
-            ts: Date.now(),
-          }),
-        },
-      ],
-    });
-  } catch (e) {
-    console.error("Failed to publish PRICE_UPDATES", e);
-  }
-
-  const contracts = await prisma.optionContract.findMany({
-    where: { underlyingId: underlying.id },
-  });
-  if (contracts.length === 0) return;
-
-  const contractIds = contracts.map((c) => c.id);
-
-  const orders = await prisma.order.findMany({
-    where: {
-      contractId: { in: contractIds },
-      status: "PENDING",
-    },
-  });
-
-  for (const order of orders) {
-    const canFill = shouldFill({
-      side: order.side,
-      orderType: order.orderType,
-      limitPrice: order.price,
-      currentPrice,
-    });
-
-    if (!canFill) continue;
-
-    await fillOrder(order, currentPrice);
-  }
+interface BookOrder {
+  id: string;
+  userId: string;
+  price: bigint;
+  qty: number;
+  remainingQty: number;
+  orderType: "MARKET" | "LIMIT";
+  side: "BUY" | "SELL";
+  createdAt: number;
 }
 
-// -----------------------------------------------------
-// FILL ORDER
-// -----------------------------------------------------
 /**
- * Performs fill order operation.
- * @param {any} order - Description of order
- * @param {bigint} fillPrice - Description of fillPrice
- * @returns {Promise<void>} Description of return value
+ * In-memory order books per contract
  */
-export async function fillOrder(order: any, fillPrice: bigint) {
-  const remainingQty = order.qty - order.filledQty;
-  if (remainingQty <= 0) return;
+const orderBooks: Record<
+  string,
+  {
+    BUY: BookOrder[];
+    SELL: BookOrder[];
+  }
+> = {};
 
-  // 1) Create trade
-  const trade = await prisma.trade.create({
-    data: {
-      orderId: order.id,
-      userId: order.userId,
-      price: fillPrice,
-      qty: remainingQty,
-      direction: order.side,
-    },
-  });
+/**
+ * Initialize or get order book for a contract
+ */
+function getOrderBook(contractId: string) {
+  if (!orderBooks[contractId]) {
+    orderBooks[contractId] = { BUY: [], SELL: [] };
+  }
+  return orderBooks[contractId];
+}
 
-  // 2) Update order → FILLED
-  const updatedOrder = await prisma.order.update({
-    where: { id: order.id },
-    data: {
-      filledQty: order.qty,
-      status: "FILLED",
-    },
-  });
+/**
+ * Add order to the order book with proper price sorting
+ */
+function addToOrderBook(
+  contractId: string,
+  order: {
+    id: string;
+    userId: string;
+    side: "BUY" | "SELL";
+    price: bigint;
+    qty: number;
+    orderType: "MARKET" | "LIMIT";
+  },
+) {
+  const book = getOrderBook(contractId);
+  const side = order.side;
 
-  // 3) Update position via your service
-  const updatedPosition = await updatePositionFromTrade({
+  const bookOrder: BookOrder = {
+    id: order.id,
     userId: order.userId,
-    contractId: order.contractId,
-    price: fillPrice,
-    qty: remainingQty,
-    direction: order.side,
-  });
+    price: order.price,
+    qty: order.qty,
+    remainingQty: order.qty,
+    orderType: order.orderType,
+    side: order.side,
+    createdAt: Date.now(),
+  };
 
-  // 4) Emit events to Kafka; WS will consume and broadcast
-  try {
-    await producer.connect();
-    await producer.send({
-      topic: TOPICS.ORDER_EVENTS,
-      messages: [
-        {
-          key: order.contractId,
-          value: JSON.stringify({
-            type: "ORDER_UPDATED",
-            userId: order.userId,
-            order: updatedOrder,
-          }),
-        },
-      ],
-    });
-
-    // Emit trade event for the created trade
-    await producer.send({
-      topic: TOPICS.TRADE_EVENTS,
-      messages: [
-        {
-          key: order.contractId,
-          value: JSON.stringify({
-            type: "TRADE_EXECUTED",
-            contractId: order.contractId,
-            trade,
-          }),
-        },
-      ],
-    });
-
-    // Optionally also emit position updates if consumers care
-    if ((TOPICS as any).POSITION_EVENTS) {
-      await producer.send({
-        topic: (TOPICS as any).POSITION_EVENTS,
-        messages: [
-          {
-            key: order.contractId,
-            value: JSON.stringify({
-              type: "POSITION_UPDATED",
-              userId: order.userId,
-              position: updatedPosition,
-            }),
-          },
-        ],
-      });
+  // For MARKET orders, keep them at high priority (front of array)
+  if (order.orderType === "MARKET") {
+    book[side].unshift(bookOrder);
+  } else {
+    // For LIMIT orders, insert at sorted position
+    if (side === "BUY") {
+      // Sort BUY orders by price DESC (highest first)
+      let inserted = false;
+      for (let i = 0; i < book.BUY.length; i++) {
+        const existingOrder = book.BUY[i];
+        if (existingOrder && order.price > existingOrder.price) {
+          book.BUY.splice(i, 0, bookOrder);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted) book.BUY.push(bookOrder);
+    } else {
+      // Sort SELL orders by price ASC (lowest first)
+      let inserted = false;
+      for (let i = 0; i < book.SELL.length; i++) {
+        const existingOrder = book.SELL[i];
+        if (existingOrder && order.price < existingOrder.price) {
+          book.SELL.splice(i, 0, bookOrder);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted) book.SELL.push(bookOrder);
     }
-  } catch (e) {
-    console.error("Failed to publish order/trade/position events", e);
   }
-
-  console.log(
-    `FILLED ${order.side} order ${order.id} @ ${fillPrice} x ${remainingQty}`,
-  );
 }
 
-// -----------------------------------------------------
-// SIMPLE MATCHING ENGINE (placeholder)
-// -----------------------------------------------------
+/**
+ * Remove fully filled order from book
+ */
+function removeFromOrderBook(contractId: string, orderId: string) {
+  const book = getOrderBook(contractId);
+  book.BUY = book.BUY.filter((o) => o.id !== orderId);
+  book.SELL = book.SELL.filter((o) => o.id !== orderId);
+}
+
+// ----------------------
+// MATCHING ENGINE
+// ----------------------
 type MatchResult = {
   fills: Array<{
     orderId: string;
@@ -226,8 +168,8 @@ type MatchResult = {
 };
 
 /**
- * Naive matcher: currently acts as a no-op and leaves orders pending.
- * Keeps API stable while a real orderbook is implemented.
+ * Matches an incoming order against existing orders in the book.
+ * Returns fills for both the incoming order and matched counter-orders.
  */
 export async function matchOrder(order: {
   id: string;
@@ -238,9 +180,135 @@ export async function matchOrder(order: {
   price: bigint | null;
   qty: number;
 }): Promise<MatchResult> {
+  const book = getOrderBook(order.contractId);
+  const fills: MatchResult["fills"] = [];
+  let filledQty = 0;
+
+  // Determine which side of the book to match against
+  const counterSide = order.side === "BUY" ? "SELL" : "BUY";
+  const counterOrders = book[counterSide];
+
+  // MARKET orders match at any price; LIMIT orders have price constraints
+  const isMarket = order.orderType === "MARKET";
+  const limitPrice = order.price ?? 0n;
+
+  let remainingQty = order.qty;
+  let i = 0;
+
+  while (remainingQty > 0 && i < counterOrders.length) {
+    const counterOrder = counterOrders[i];
+    if (!counterOrder) break;
+
+    // Check if price is acceptable
+    let canMatch = false;
+    if (isMarket) {
+      canMatch = true; // MARKET orders match anything
+    } else {
+      // LIMIT order: BUY can match SELL at limitPrice or less, SELL can match BUY at limitPrice or more
+      if (order.side === "BUY") {
+        canMatch = limitPrice >= counterOrder.price;
+      } else {
+        canMatch = limitPrice <= counterOrder.price;
+      }
+    }
+
+    if (!canMatch) break;
+
+    // Calculate fill quantity
+    const matchQty = Math.min(remainingQty, counterOrder.remainingQty);
+
+    // Use the counter-order's price (the maker's price)
+    const fillPrice = counterOrder.price;
+
+    // Add fill for incoming order
+    fills.push({
+      orderId: order.id,
+      userId: order.userId,
+      price: fillPrice,
+      qty: matchQty,
+      direction: order.side,
+    });
+
+    // Add fill for counter-order
+    fills.push({
+      orderId: counterOrder.id,
+      userId: counterOrder.userId,
+      price: fillPrice,
+      qty: matchQty,
+      direction: counterOrder.side,
+    });
+
+    // Update quantities
+    filledQty += matchQty;
+    remainingQty -= matchQty;
+    counterOrder.remainingQty -= matchQty;
+
+    // Remove counter-order if fully filled
+    if (counterOrder.remainingQty === 0) {
+      removeFromOrderBook(order.contractId, counterOrder.id);
+      counterOrders.splice(i, 1);
+    } else {
+      i++;
+    }
+  }
+
+  // Add incoming order to book if not fully filled
+  if (remainingQty > 0) {
+    addToOrderBook(order.contractId, {
+      id: order.id,
+      userId: order.userId,
+      side: order.side,
+      price: order.price ?? 0n,
+      qty: order.qty,
+      orderType: order.orderType,
+    });
+  }
+
+  // Determine final status
+  let status: "PENDING" | "PARTIAL" | "FILLED";
+  if (filledQty === order.qty) {
+    status = "FILLED";
+  } else if (filledQty > 0) {
+    status = "PARTIAL";
+  } else {
+    status = "PENDING";
+  }
+
   return {
-    fills: [],
-    filledQty: 0,
-    status: "PENDING",
+    fills,
+    filledQty,
+    status,
+  };
+}
+
+/**
+ * Cancel an order and remove it from the order book
+ */
+export function cancelOrder(contractId: string, orderId: string) {
+  removeFromOrderBook(contractId, orderId);
+}
+
+/**
+ * Get current order book state (for debugging/monitoring)
+ */
+export function getOrderBookState(contractId: string) {
+  const book = getOrderBook(contractId);
+  return {
+    buy: book.BUY.map((o) => ({
+      id: o.id,
+      userId: o.userId,
+      price: o.price.toString(),
+      qty: o.qty,
+      remaining: o.remainingQty,
+      type: o.orderType,
+    })),
+    sell: book.SELL.map((o) => ({
+      id: o.id,
+      userId: o.userId,
+      price: o.price.toString(),
+      qty: o.qty,
+      remaining: o.remainingQty,
+      type: o.orderType,
+    })),
   };
 }

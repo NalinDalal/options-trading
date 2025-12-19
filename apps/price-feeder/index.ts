@@ -1,6 +1,10 @@
 import { initKafkaProducer, TOPICS } from "@repo/kafka";
 import { SimulatorAdapter } from "./adapters/SimulatorAdapter";
 
+/**
+ * Performs start operation.
+ * @returns {Promise<void>} Description of return value
+ */
 async function start() {
   const producer = await initKafkaProducer();
 

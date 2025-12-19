@@ -2,6 +2,10 @@ import { consumer } from "@repo/kafka";
 import { TOPICS } from "@repo/kafka/topics";
 import { broadcast } from "./broadcast/core";
 
+/**
+ * Performs start kafka consumer operation.
+ * @returns {Promise<void>} Description of return value
+ */
 export async function startKafkaConsumer() {
   await consumer.connect();
   await consumer.subscribe({

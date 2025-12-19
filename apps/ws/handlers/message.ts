@@ -2,6 +2,12 @@ import type { ServerWebSocket } from "bun";
 import type { WSData } from "../types";
 import { subscribers } from "../state/subscribers";
 
+/**
+ * Performs handle message operation.
+ * @param {Bun.ServerWebSocket<import("/Users/nalindalal/options-trading/apps/ws/types").WSData>} ws - Description of ws
+ * @param {string | Buffer<ArrayBufferLike>} message - Description of message
+ * @returns {void} Description of return value
+ */
 export function handleMessage(
   ws: ServerWebSocket<WSData>,
   message: string | Buffer,
