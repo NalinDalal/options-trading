@@ -37,6 +37,10 @@ function startWsServer(port: number) {
   });
 }
 
+const wsPort = Number(process.env.WS_PORT || 8080);
+startWsServer(wsPort);
+console.log(`WS gateway listening on ${wsPort}`);
+
 startKafkaConsumer().catch((e) => {
   console.error("Failed to start WS Kafka consumer", e);
 });
