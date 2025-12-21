@@ -130,3 +130,9 @@ well we were using a feed from external service, let's write our own algo
 
 price-engine → Kafka (PRICE_EVENTS)
 ws-gateway → consumes → WS broadcast
+
+---
+
+1. Wiring Kafka→WS broadcasts and adding orderbook/positions/trades endpoints.
+2. Adding a persisted orderbook (or restoring from DB) and basic margin checks.
+3. Building the FE trading screens (underlyings list, option chain, place order, orders/positions views).

@@ -105,14 +105,30 @@ async function onPlaceOrder(
             },
           });
 
-          // Update position
-          await updatePositionFromTrade({
+          // Update position and emit position event
+          const position = await updatePositionFromTrade({
             userId: fill.userId,
             contractId,
             price: fill.price,
             qty: fill.qty,
             direction: fill.direction,
           });
+
+          if (TOPICS.POSITION_EVENTS) {
+            await producer.send({
+              topic: TOPICS.POSITION_EVENTS,
+              messages: [
+                {
+                  key: contractId,
+                  value: JSON.stringify({
+                    type: "POSITION_UPDATED",
+                    userId: fill.userId,
+                    position,
+                  }),
+                },
+              ],
+            });
+          }
 
           // Emit trade event
           await producer.send({

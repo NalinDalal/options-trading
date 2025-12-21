@@ -7,6 +7,9 @@ import { contractRoutes } from "./routes/contracts";
 import { priceRoutes } from "./routes/prices";
 
 import { orderRoutes } from "./routes/orders";
+import { orderbookRoutes } from "./routes/orderbook";
+import { positionRoutes } from "./routes/positions";
+import { tradeRoutes } from "./routes/trades";
 
 const port = Number(process.env.PORT || 3001);
 
@@ -33,6 +36,9 @@ serve({
       ...contractRoutes,
       ...priceRoutes,
       ...orderRoutes,
+      ...orderbookRoutes,
+      ...positionRoutes,
+      ...tradeRoutes,
     ]);
   },
 });
