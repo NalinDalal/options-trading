@@ -44,7 +44,7 @@ async function start() {
     const ticks = await fetchPrices();
 
     await producer.send({
-      topic: TOPICS.PRICE_TICK,
+      topic: TOPICS.PRICE_UPDATES,
       messages: ticks.map((tick) => ({
         key: tick.symbol,
         value: JSON.stringify(tick),

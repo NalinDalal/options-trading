@@ -12,6 +12,12 @@ export async function startKafkaConsumer() {
     topic: TOPICS.PRICE_UPDATES,
     fromBeginning: false,
   });
+  if (TOPICS.PRICE_EVENTS) {
+    await consumer.subscribe({
+      topic: TOPICS.PRICE_EVENTS,
+      fromBeginning: false,
+    });
+  }
   await consumer.subscribe({
     topic: TOPICS.ORDER_EVENTS,
     fromBeginning: false,
@@ -20,9 +26,9 @@ export async function startKafkaConsumer() {
     topic: TOPICS.TRADE_EVENTS,
     fromBeginning: false,
   });
-  if ((TOPICS as any).POSITION_EVENTS) {
+  if (TOPICS.POSITION_EVENTS) {
     await consumer.subscribe({
-      topic: (TOPICS as any).POSITION_EVENTS,
+      topic: TOPICS.POSITION_EVENTS,
       fromBeginning: false,
     });
   }
@@ -41,6 +47,15 @@ export async function startKafkaConsumer() {
               type: "price_update",
               symbol: evt.symbol,
               price: evt.price,
+            });
+            break;
+          }
+          case TOPICS.PRICE_EVENTS: {
+            broadcast("prices", {
+              type: evt.type || "price_event",
+              symbol: evt.symbol,
+              price: evt.price,
+              ts: evt.ts,
             });
             break;
           }
@@ -69,11 +84,7 @@ export async function startKafkaConsumer() {
             break;
           }
           default: {
-            // POSITION_EVENTS (optional)
-            if (
-              (TOPICS as any).POSITION_EVENTS &&
-              topic === (TOPICS as any).POSITION_EVENTS
-            ) {
+            if (TOPICS.POSITION_EVENTS && topic === TOPICS.POSITION_EVENTS) {
               if (evt?.position && evt?.userId) {
                 broadcast(`positions:${evt.userId}`, {
                   type: "position_update",

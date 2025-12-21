@@ -1,6 +1,5 @@
 import { consumer, producer, TOPICS } from "@repo/kafka";
 import { prisma } from "@repo/db";
-import { publishPriceUpdate } from "@repo/ws";
 
 type PriceTick = {
   underlyingId: string;
@@ -16,7 +15,7 @@ type PriceTick = {
 async function start() {
   await consumer.connect();
   await consumer.subscribe({
-    topic: TOPICS.PRICE_TICK,
+    topic: TOPICS.PRICE_UPDATES,
     fromBeginning: false,
   });
 
@@ -37,14 +36,7 @@ async function start() {
         },
       });
 
-      // 2. Broadcast via WS gateway
-      await publishPriceUpdate({
-        underlyingId: tick.underlyingId,
-        price: tick.price,
-        ts: tick.ts,
-      });
-
-      // 3. Emit derived event
+      // 2. Emit derived price event for downstream consumers
       await producer.send({
         topic: TOPICS.PRICE_EVENTS,
         messages: [
