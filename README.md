@@ -198,5 +198,3 @@ docker run -d --name kafka \
           -e KAFKA_CLUSTER_ID=<UUID> \
           confluentinc/cp-kafka:7.6.0
 ```
-
-need to figure out how kafka sits in picture
