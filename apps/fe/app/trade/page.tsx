@@ -69,24 +69,26 @@ type Order = {
   filledQty: number;
 };
 
-const formatMoney = /**
- * Executes format money operation.
- * @param {string | number} value - Description of value
- * @returns {string} Description of return value
- */
-(value: string | number | null | undefined) => {
-  if (value === null || value === undefined) return "-";
-  const num = Number(value);
-  if (Number.isNaN(num)) return String(value);
-  return num.toFixed(2);
-};
+const formatMoney =
+  /**
+   * Executes format money operation.
+   * @param {string | number} value - Description of value
+   * @returns {string} Description of return value
+   */
+  (value: string | number | null | undefined) => {
+    if (value === null || value === undefined) return "-";
+    const num = Number(value);
+    if (Number.isNaN(num)) return String(value);
+    return num.toFixed(2);
+  };
 
-const utcDate = /**
- * Executes utc date operation.
- * @param {string} value - Description of value
- * @returns {string} Description of return value
- */
-(value: string) => new Date(value).toUTCString();
+const utcDate =
+  /**
+   * Executes utc date operation.
+   * @param {string} value - Description of value
+   * @returns {string} Description of return value
+   */
+  (value: string) => new Date(value).toUTCString();
 
 /**
  * Performs  trade page operation.
