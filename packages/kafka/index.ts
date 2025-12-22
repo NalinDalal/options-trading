@@ -22,4 +22,4 @@ export * from "./events/trade";
 export * from "./events/position";
 
 export * from "./producer";
-export * from "./consumer";
+//export * from "./consumer";
