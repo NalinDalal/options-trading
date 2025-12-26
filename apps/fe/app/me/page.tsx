@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { API_URL } from "../page";
 
 // Define the user type
@@ -13,6 +14,7 @@ interface User {
  * @returns {React.JSX.Element} Description of return value
  */
 export default function MePage() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
