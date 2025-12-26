@@ -25,6 +25,8 @@ model Underlying {
   symbol    String           @unique
   decimals  Int              @default(2)
   contracts OptionContract[]
+   currentPrice BigInt?
+  lastUpdated  DateTime?
 }
 
 model OptionContract {

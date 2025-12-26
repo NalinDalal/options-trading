@@ -5,6 +5,14 @@ import { verifyJwt } from "./auth/verifyJwt";
 import { startKafkaConsumer } from "./kafkaConsumer";
 import "dotenv/config";
 
+// Re-export broadcast functions for use in other apps
+export { broadcast } from "./broadcast/core";
+export {
+  broadcastOrderUpdate,
+  broadcastPriceUpdate,
+  broadcastPositionUpdate,
+} from "./broadcast/domain";
+
 /**
  * Performs start ws server operation.
  * @param {number} port - Description of port

@@ -90,6 +90,9 @@ export default function MePage() {
             </button>
           </div>
         )}
+        <div className="mt-8 text-center">
+          <button onClick={() => router.push("/trade")}>Trade</button>
+        </div>
       </div>
     </div>
   );
